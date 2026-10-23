@@ -33,6 +33,13 @@ helper_present() {
   return 1
 }
 
+json_field() {
+  # jq already ships with Omarchy and is used below to encode file roots.
+  # Diagnosis must remain independent of the helper being diagnosed.
+  command -v jq >/dev/null || { echo "oma-cast: jq is required for CLI JSON parsing" >&2; return 1; }
+  jq -r --arg key "$1" 'getpath($key | split(".")) | if . == null then empty else . end'
+}
+
 build_helper() {
   command -v cargo >/dev/null || {
     echo "oma-cast: cargo not found; install rust to build the file search helper" >&2
@@ -73,6 +80,7 @@ File search
   files reindex          Rescan the configured root
   files reset-ranking    Clear the file access ranking
   files retry            Retry after building a missing helper
+  previews status        Check optional preview support (no shell needed)
 USAGE
 }
 
@@ -113,9 +121,10 @@ cmd_install() {
       echo "oma-cast: warning: cargo not found; run 'oma-cast files build' after installing Rust" >&2
     fi
   else
-    local existing_enabled=false
-    existing_enabled=$(python3 -I -c 'import json,sys; print(str(json.load(open(sys.argv[1])).get("files",{}).get("enabled", False)).lower())' "$settings_file" 2>/dev/null || echo false)
-    if [[ $existing_enabled == true ]]; then
+    local existing_enabled
+    if ! existing_enabled=$(json_field files.enabled < "$settings_file" 2>/dev/null); then
+      echo "oma-cast: cannot read existing file-search settings; check JSON and jq" >&2
+    elif [[ $existing_enabled == true ]]; then
       echo "File search is enabled (existing settings); helper: $(helper_present || echo 'not installed')"
     else
       echo "File search is off for existing installs; opt in with: oma-cast files build && oma-cast files enable"
@@ -214,7 +223,7 @@ cmd_files() {
         json=$(jq -cn --arg root "$2" '{root:$root}')
         ipc call files.updateSettings "$json"
       else
-        ipc call files.status '{}' | python3 -I -c 'import json,sys; d=json.load(sys.stdin); print(d.get("data",{}).get("root",""))'
+        ipc call files.status '{}' | json_field data.root
       fi
       ;;
     reindex) need_shell; ipc call files.reindex '{}' ;;
@@ -222,6 +231,12 @@ cmd_files() {
     retry) need_shell; ipc call files.retry '{}' ;;
     *) die "usage: oma-cast files build|status|enable|disable|root [path]|reindex|reset-ranking|retry" ;;
   esac
+}
+
+cmd_previews_status() {
+  local helper
+  helper=$(helper_present) || die "preview helper missing; run: oma-cast files build"
+  "$helper" --preview-capabilities || die "rebuild preview helper with: oma-cast files build"
 }
 
 cmd_doctor() {
@@ -234,6 +249,7 @@ cmd_doctor() {
   check "omarchy-shell is installed" command -v omarchy-shell
   check "omarchy-shell is running" omarchy-shell shell ping
   check "socat is installed (fast shell IPC)" command -v socat
+  check "jq is installed (CLI JSON parsing)" command -v jq
   check "Hyprland socket is reachable" hyprctl version
   check "plugin is linked into $plugins_dir" test -n "$(current_link)"
   check "plugin is enabled" bash -c "omarchy plugin list --json 2>/dev/null | grep -q '\"id\":\"$PLUGIN_ID\"[^}]*\"enabled\":true'"
@@ -242,11 +258,14 @@ cmd_doctor() {
 
   local helper files_json files_enabled files_state files_error indexed rss
   files_field() {
-    printf '%s' "$files_json" | python3 -I -c 'import json,sys; d=json.load(sys.stdin).get("data",{}); v=d.get(sys.argv[1],""); print(str(v).lower() if isinstance(v,bool) else v)' "$1" 2>/dev/null
+    printf '%s' "$files_json" | json_field "data.$1" 2>/dev/null
   }
   helper=$(helper_present || true)
   files_json=$(omarchy-shell "$IPC_TARGET" call files.status '{}' 2>/dev/null || true)
-  files_enabled=$(files_field enabled)
+  if ! files_enabled=$(files_field enabled) || [[ $files_enabled != true && $files_enabled != false ]]; then
+    printf '  FAIL  cannot read file search status; check shell response and jq\n'
+    bad=1
+  fi
   files_state=$(files_field state)
   files_error=$(files_field error)
   indexed=$(files_field indexedFiles)
@@ -254,6 +273,15 @@ cmd_doctor() {
 
   if [[ -n $helper ]]; then
     printf '  ok    file search helper %s\n' "$helper"
+    local previews
+    previews=$("$helper" --preview-capabilities 2>/dev/null || true)
+    if [[ $previews == *'"previewProtocol":1'* ]]; then
+      printf '  ok    image/text previews (Rust helper; no Python runtime)\n'
+      [[ $previews == *'"pdf":true'* ]] && printf '  ok    optional PDF renderer (Poppler)\n' || printf '  info  PDF previews need optional poppler (pdftoppm)\n'
+      [[ $previews == *'"f3d":true'* ]] && printf '  ok    optional 3D renderer (F3D)\n' || printf '  info  3D previews need optional f3d\n'
+    else
+      printf '  info  preview helper needs rebuilding: oma-cast files build\n'
+    fi
   elif [[ $files_enabled == true ]]; then
     printf '  FAIL  file search helper missing; run: oma-cast files build\n'
     bad=1
@@ -307,6 +335,9 @@ case "${1:-}" in
       *) die "usage: oma-cast setup hyprland" ;;
     esac
     ;;
+  previews)
+    [[ ${2:-} == status ]] || die "usage: oma-cast previews status"
+    cmd_previews_status ;;
   doctor) cmd_doctor ;;
   -h|--help|help|"") usage ;;
   *) usage >&2; exit 1 ;;

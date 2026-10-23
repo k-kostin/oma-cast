@@ -541,7 +541,8 @@ Grammar: `{keyword opt="v" opt2='v' | modifier | modifier}`. Quotes accepted: `"
 > [`fff-search` 0.11.0](https://github.com/dmtrKovalenko/fff) in a small
 > out-of-process sidecar (`helper/`) instead of the SQLite/FTS indexer above.
 > It covers file-name search, the root Files section, frecency and actions;
-> previews, content search, scopes and hidden-file support are deferred. See
+> selected-file previews are described in the Phase 7 slice below; content
+> search, scopes and hidden-file support are deferred. See
 > [`docs/file-search.md`](docs/file-search.md). New installs default
 > it on; existing installs opt in.
 
@@ -844,9 +845,15 @@ Repo layout [D]:
 > **Implementation note (2026-10-20):** the first slice ships with
 > `fff-search` 0.11.0 in `helper/` and a QML sidecar service; see
 > `docs/file-search.md`. Measured on a 20,662-file home: 30 ms scan,
-> 20–35 MB RSS with the watcher, 0–2 ms queries. Previews, content search,
+> 20–35 MB RSS with the watcher, 0–2 ms queries. Content search,
 > hidden files and scopes are later phases. The 500k-file acceptance is not yet
 > tested.
+
+Selected-file preview slice [D, 2026-10-23]: `oma-cast-files --preview` runs
+separately from FFF indexing, with optional F3D/Poppler renderers. QML displays
+images and text asynchronously; no Python/Node runtime is added. See
+`docs/file-previews.md` for dependencies, limits and remaining scope. This does
+not complete all Phase 7 acceptance checks.
 
 ### Phase 8: Parity features
 - Emoji & Symbols, Notes window, Theme Studio, Switch Theme, Confetti, Focus, Screenshots, Calendar, Contacts, Dictionary, Translator (provider), Dictation (whisper.cpp), Typing Practice, `.rayconfig` import/export (§11), Kill Process and Color Picker as first-party extras.

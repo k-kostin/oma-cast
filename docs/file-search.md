@@ -99,6 +99,6 @@ Measured on a 20,662-file home (Omarchy 4, Quickshell 0.3.2): ~30 ms cold scan,
   `include_hidden` option (walker + watcher) is the clean fix; a git root includes
   dotfiles with the secret deny list.
 - One root; scopes and a settings UI for ignore patterns are deferred.
-- Previews/Quick Look, content search, folder rows, Open With and Move to Trash
-  are later work.
+- Selected-file previews are covered in [file-previews.md](file-previews.md).
+  Quick Look, content search, folder rows, Open With and Move to Trash remain deferred.
 - Non-UTF-8 names are dropped because FFF's relative path is lossy.

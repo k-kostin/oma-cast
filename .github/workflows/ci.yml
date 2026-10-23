@@ -27,3 +27,14 @@ jobs:
 
       - name: Plugin manifest is valid JSON
         run: node -e 'JSON.parse(require("fs").readFileSync("plugin/manifest.json", "utf8"))'
+
+  helper:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - run: cargo fmt --manifest-path helper/Cargo.toml -- --check
+      - run: cargo test --locked --manifest-path helper/Cargo.toml
+      - run: cargo clippy --locked --manifest-path helper/Cargo.toml --all-targets -- -D warnings

@@ -127,6 +127,7 @@ Works:
   - A launch from root clears the query [I].
   - A row is selected on hover only after a real pointer move (Omarchy's PointerMoveGate).
 - **File search (Phase 7 partial):** a Rust sidecar (`helper/`, `fff-search = 0.11.0`) indexes file names under `~` and answers a Files section in root plus a "Search Files" view. Query history is deliberately not stored; only FFF's access frecency LMDB is. Three rows max in root, a filename-confidence gate, hidden/secret filtering, `.ignore` support, and `Show All Files`. New installs default on and `install` builds the helper; existing installs opt in. `oma-cast files …` controls it.
+- **Selected-file previews (Phase 7 partial):** a one-shot mode in the same Rust helper prepares bounded text and optional F3D/Poppler thumbnails; QML displays images asynchronously. Selection changes cancel the current request and reject stale replies. CLI JSON parsing uses Omarchy's existing jq independently of the helper being diagnosed. Dependencies, cache, lifecycle guarantees and limits are in `docs/file-previews.md`. Whole-home performance and the remaining Phase 7 acceptance are still unqualified.
 - **Calculator** (`core/Calculator.js`, our own engine [D]; no `qalc`/fend dependency): a "Calculator" section above Results with Raycast's two-pane card (question → answer, captions below each). It handles:
   - arithmetic and functions
   - Soulver-style percentages (`$30 + 20%`, `20% off 50`, `50 as a % of 200`)
@@ -138,12 +139,12 @@ Works:
 
   ↵ copies the answer (HUD), Ctrl+↵ pastes it through `omarchy-clipboard-paste-text`, Ctrl+Shift+C copies "question = answer". Each one saves to **Calculator History** (`db/calculator.json`, 4096 rows / 90 days): a built-in command and pushed view, searchable, Ctrl+D deletes an entry, Ctrl+Shift+D deletes all. RPC: `calculator.calculate|historyGetAll|historyDelete|historyDeleteAll|refreshCurrencies|getCurrencies`. A bare number, word or quantity (`42`, `firefox`, `5 kg`) never produces a row, because the section takes ↵.
 - **Latency:** show → mapped in 37–44 ms, hide in 9–25 ms (`tests/smoke.sh`).
-- **Tests:** 106 node unit tests + 8 helper tests (`node --test tests/*.test.js`, `cargo test --manifest-path helper/Cargo.toml`), covering root search, files, calculator and the default-agent hand-off. One test parses the installed Omarchy menu and fails on an Omarchy whose root menus were renamed (`style` → `appearance`).
+- **Tests:** the Node suite covers root search, files, calculator and the default-agent hand-off; Rust integration tests cover FFF, previews, renderer lifecycle and private CLI install/diagnosis. Use the commands above for current results. One Node test parses the installed Omarchy menu and fails on an Omarchy whose root menus were renamed (`style` → `appearance`).
 
 **Default-agent hand-off (fork, 2026-10-20):** user-authorized addition outside the original phase plan. The root fallback "Ask default agent" and Ctrl+Alt+Enter pass the query to `omarchy-agent --prompt` as a literal argv element. `AgentLauncher.qml` checks the configured agent/terminal with a bounded, question-free preflight, prevents overlapping submissions and cancels on hide/unload. `Launcher.qml` dismisses the overlay before launching through `Util.execArgv`. Errors leave the query visible. There are no new dependencies, model APIs, credentials or question-history writes. Existing CLI approval behaviour is inherited. Portable checks do not establish live terminal focus, authentication, or provider compatibility; verify those on Omarchy.
 
 Stubbed / not yet:
-- File search previews/Quick Look and content search; hidden dotfiles at a non-git root; multi-root/scopes; a per-file "forget" action.
+- Quick Look and file content search; hidden dotfiles at a non-git root; multi-root/scopes; a per-file "forget" action.
 - Keystroke buffering before the surface maps. Keys sent within ~40 ms of the hotkey go to the window underneath.
 - Vim navigation bindings, Ctrl+P dropdown, Ctrl+T, Ctrl+Shift+K, inline argument pills, alerts.
 - No settings window, so you can't re-enable a disabled command except by editing `~/.local/share/oma-cast/db/settings.json` (delete its `enabled: false`). That's Phase 2.

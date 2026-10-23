@@ -84,7 +84,10 @@ var configDefaults = {
   keepVisibleOnFocusLoss: false,
   // Daily ECB reference rates from frankfurter.dev for currency conversion
   // (SPEC §8 Calculator). The only network request oma-cast makes. [D]
-  currencyRates: true
+  currencyRates: true,
+  filePreviews: true,
+  previewF3d: "f3d",
+  previewPdfRenderer: "pdftoppm"
 }
 
 // File-search settings live in settings.json under `files`. New installs get

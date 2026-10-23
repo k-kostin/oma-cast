@@ -1,3 +1,5 @@
+mod preview;
+
 // oma-cast-files: a small stdin/stdout sidecar around fff-search 0.11.0.
 //
 // One JSON request per line in, one JSON response per line out. The launcher
@@ -505,6 +507,9 @@ fn handle(helper: &mut Helper, request: &Value) -> Res<Value> {
 }
 
 fn main() {
+    if preview::dispatch() {
+        return;
+    }
     let args = match parse_args() {
         Ok(args) => args,
         Err(error) => {

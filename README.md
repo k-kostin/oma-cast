@@ -89,6 +89,29 @@ oma-cast files reset-ranking   # forget file access scores
   cold scan is tens of milliseconds; a very large home costs more.
   `oma-cast files disable` is the off switch.
 
+## File previews
+
+File-search results can show an asynchronous preview of the selected file:
+images, a short text excerpt, the first PDF page, or a 3D model thumbnail.
+They reuse the FFF helper binary; Python, Node and a separate preview daemon
+are not required. Rebuild an older helper with `oma-cast files build`.
+
+- Images and text need only the helper and existing Qt image codecs.
+- PDF previews optionally use Poppler (`pdftoppm`).
+- STL / OBJ / PLY previews optionally use F3D with software EGL rendering.
+
+CLI JSON parsing uses `jq`, already included in Omarchy and used for setting
+the file-search root. Diagnosis also works with an absent or older helper.
+
+These optional tools are discovered on `PATH`; oma-cast does not download or
+install them automatically. Missing tools leave file search and other preview
+types working. `oma-cast previews status` checks support without a running shell;
+`oma-cast doctor` also reports optional renderer availability.
+
+Set `"filePreviews": false` in `~/.config/oma-cast/config.json` to turn previews
+off. Details, executable overrides, resource limits and testing are in
+[`docs/file-previews.md`](docs/file-previews.md).
+
 ## Ask your default agent
 
 Type a question, select **Ask default agent** under the web-search fallbacks,
@@ -142,7 +165,8 @@ oma-cast doctor
 oma-cast is early. Search, ranking and the Omarchy integration are done. Coming next:
 
 - [ ] Settings window
-- [ ] File search previews and content search
+- [x] Selected-file previews (images, text, first-page PDF and STL/OBJ/PLY)
+- [ ] Quick Look, file content search and remaining Phase 7 acceptance
 - [ ] Script Commands
 - [ ] Clipboard history, snippets, quicklinks, calculator
 - [ ] Running Raycast extensions built from the open-source [`raycast/extensions`](https://github.com/raycast/extensions) repo

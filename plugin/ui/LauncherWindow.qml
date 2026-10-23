@@ -4,6 +4,7 @@ import Quickshell.Wayland
 import qs.Commons
 import qs.Commons as Commons
 import qs.Ui
+import "../services"
 import "../core/Agent.js" as Agent
 
 OverlayWindow {
@@ -11,6 +12,7 @@ OverlayWindow {
 
   required property var backend
   property var appLibrary: null
+
 
   signal dismissRequested()
 
@@ -59,6 +61,16 @@ OverlayWindow {
     return r.ok ? r.data : ({})
   }
 
+  readonly property string previewPath: window.selectedRow ? window.selectedRow.filePath : ""
+  readonly property bool previewVisible: window.backend.config.filePreviews && (window.view.kind === "files" || window.previewPath.length > 0)
+
+  PreviewSource {
+    id: preview
+    path: window.previewPath
+    active: window.shown && window.previewVisible && window.backend.config.filePreviews
+    helperCandidates: window.backend.paths.helperCandidates
+  }
+
   function emptyTitle() {
     if (window.view.kind === "alias") return window.view.title
     if (window.view.kind === "files") {
@@ -72,7 +84,7 @@ OverlayWindow {
     return window.backend.ready ? "No results" : "Loading…"
   }
 
-  readonly property int cardWidth: Math.min(px(750), width - Style.gapsOut * 2)
+  readonly property int cardWidth: Math.min(px(window.view.kind === "files" && window.previewVisible ? 980 : 750), width - Style.gapsOut * 2)
   readonly property int fullHeight: Math.min(px(475), height - Style.gapsOut * 2)
   readonly property int headerHeight: px(66)
   readonly property int footerHeight: px(42)
@@ -160,6 +172,7 @@ OverlayWindow {
     return {
       rowKind: kind,
       itemId: String(c.id || ""),
+      filePath: String(c.path || ""),
       title: String(c.title || ""),
       subtitle: String(c.subtitle || ""),
       glyph: String(c.glyph || ""),
@@ -577,7 +590,10 @@ OverlayWindow {
 
       ListView {
         id: list
-        anchors.fill: parent
+        anchors.left: parent.left
+        anchors.top: parent.top
+        anchors.bottom: parent.bottom
+        width: window.previewVisible ? parent.width * 0.49 : parent.width
         anchors.topMargin: window.px(4)
         anchors.bottomMargin: window.px(4)
         visible: window.view.kind !== "alias"
@@ -592,6 +608,89 @@ OverlayWindow {
           zoom: window.zoom
           onHovered: function(i, item, mouse) { if (!window.actionPanelOpen && pointerGate.moved(item, mouse)) window.select(i) }
           onClicked: function(i) { window.perform("open", i) }
+        }
+      }
+
+      Rectangle {
+        id: previewPane
+        visible: window.previewVisible
+        anchors.left: list.right
+        anchors.right: parent.right
+        anchors.top: parent.top
+        anchors.bottom: parent.bottom
+        anchors.leftMargin: window.px(12)
+        color: Util.alpha(window.look.foreground, 0.025)
+
+        Rectangle { width: 1; height: parent.height; color: Util.alpha(window.look.foreground, 0.12) }
+        Image {
+          id: previewImage
+          anchors.top: parent.top
+          anchors.left: parent.left
+          anchors.right: parent.right
+          anchors.bottom: previewMeta.top
+          anchors.margins: window.px(18)
+          source: preview.result.image || ""
+          visible: status === Image.Ready
+          asynchronous: true
+          autoTransform: true
+          cache: false
+          fillMode: Image.PreserveAspectFit
+          sourceSize.width: 640
+          sourceSize.height: 640
+        }
+        Text {
+          anchors.fill: previewImage
+          visible: !previewImage.visible
+          textFormat: Text.PlainText
+          text: preview.busy || previewImage.status === Image.Loading ? "Loading preview…"
+                : previewImage.status === Image.Error ? "Could not load this image"
+                : (preview.result.text || preview.result.message || "Select a file to preview")
+          color: window.look.foreground
+          font.family: window.look.fontFamily
+          font.pixelSize: window.px(13)
+          wrapMode: Text.WrapAnywhere
+          maximumLineCount: 15
+          elide: Text.ElideRight
+          verticalAlignment: preview.result.text ? Text.AlignTop : Text.AlignVCenter
+          horizontalAlignment: preview.result.text ? Text.AlignLeft : Text.AlignHCenter
+          clip: true
+        }
+        Column {
+          id: previewMeta
+          anchors.left: parent.left
+          anchors.right: parent.right
+          anchors.bottom: parent.bottom
+          anchors.margins: window.px(18)
+          spacing: window.px(6)
+          Text {
+            width: parent.width
+            textFormat: Text.PlainText
+            text: preview.result.name || (window.selectedRow ? window.selectedRow.title : "")
+            color: window.look.foreground
+            font.family: window.look.fontFamily
+            font.pixelSize: window.px(14)
+            font.bold: true
+            elide: Text.ElideMiddle
+          }
+          Text {
+            width: parent.width
+            textFormat: Text.PlainText
+            text: preview.result.bytes !== undefined ? (preview.result.type + (preview.result.page ? " · Page " + preview.result.page : "") + " · " + (preview.result.bytes / 1048576).toFixed(2) + " MiB" +
+                  (preview.result.triangles ? " · " + (preview.result.triangles / 1000).toFixed(0) + "k triangles" : "")) : ""
+            color: window.look.foreground
+            opacity: 0.65
+            font.family: window.look.fontFamily
+            font.pixelSize: window.px(11)
+            elide: Text.ElideRight
+          }
+          Text {
+            textFormat: Text.PlainText
+            text: preview.result.source ? ((preview.result.source === "cache" ? "Cached preview" : "Preview") + " · " + preview.result.elapsedMs + " ms") : ""
+            color: window.look.foreground
+            opacity: 0.45
+            font.family: window.look.fontFamily
+            font.pixelSize: window.px(11)
+          }
         }
       }
 
